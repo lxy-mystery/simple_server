@@ -23,6 +23,13 @@ class Acceptor(Process):
         self._workers[index].start()
         self.message_bus.append(pipe[0])
 
+    def on_idel(self):
+        print("idel...")
+        for index, worker in enumerate(self._workers):
+            print(f"id: {index} worker:{worker._name}, is alive:{worker.is_alive()}")
+            if not worker.is_alive():
+                self._start_worker(index)
+
     def _start_server(self):
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -40,7 +47,7 @@ class Acceptor(Process):
     def dispatch(self, socket_fd):
         worer_id = self._dispatch_rule()
         session_fd, address = self.listener.accept()
-        print("dispatch fd:{} to worker:{}".format(session_fd.fileno(), worer_id))
+        print("dispatch fd:{} address {} to worker:{}".format(session_fd.fileno(), address, worer_id))
         socket.send_fds(self.message_bus[worer_id],[b"Acceptor new Connection"], [session_fd.fileno()])
 
     def run(self):
