@@ -1,6 +1,8 @@
 # simple_server
 
-a simple multi process epoll server developed by python
+这是一个简单的基于epoll的多进程处理的tcp服务器
+
+![对象交互时序图](./image/Sequence-1-连接建立时序图.png)
 
 ## 环境安装
 目前只支持linux环境下使用，python 版本号要求在 python 3.9 +
