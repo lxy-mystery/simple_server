@@ -34,14 +34,22 @@ class Worker(Process):
         self._sessions[fd].send(response)
 
     def on_recive_new_connection(self, message_bus):
+        print(f"{self._name} get new connection...")
         message, fds, flags, addr  = socket.recv_fds(self._message_bus, 2048, 128)
         print("recv new [{}] connection".format(len(fds)))
         for fd in fds:
             self._sessions[fd] = socket.socket(socket.AF_INET, socket.SOCK_STREAM, fileno=fd)
             self.loop.register(fd, select.EPOLLIN, self.do_request)
-            
+            self.loop.register(self._message_bus.fileno(), select.EPOLLHUP, self.on_close)
+            self.loop.register(self._message_bus.fileno(), select.EPOLLRDHUP, self.on_close)
+
+    def on_error(self):
+        exit(-1)
+
     def run(self):
         print("start worker {}".format(self._name))
         self.loop.register(self._message_bus.fileno(), select.EPOLLIN, self.on_recive_new_connection)
+        self.loop.register(self._message_bus.fileno(), select.EPOLLHUP, self.on_error)
+        self.loop.register(self._message_bus.fileno(), select.EPOLLRDHUP, self.on_error)
         # 启动事件循环
         self.loop.run()

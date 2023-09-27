@@ -19,15 +19,23 @@ class Acceptor(Process):
 
     def _start_worker(self, index):
         pipe = socket.socketpair()
-        self._workers.append(self._worker_class("worker{}".format(index), pipe[1]))
+        if len(self._workers) <= index:
+            self._workers.append(self._worker_class("worker{}".format(index), pipe[1]))
+            
+        else:
+            self._workers[index] = self._worker_class("worker{}".format(index), pipe[1])
         self._workers[index].start()
-        self.message_bus.append(pipe[0])
+
+        if len(self.message_bus) <= index:
+            self.message_bus.append(pipe[0])
+        else:
+            self.message_bus[index] = pipe[0]
 
     def on_idel(self):
-        print("idel...")
         for index, worker in enumerate(self._workers):
-            print(f"id: {index} worker:{worker._name}, is alive:{worker.is_alive()}")
+            # print(f"id: {index} worker:{worker._name}, is alive:{worker.is_alive()}")
             if not worker.is_alive():
+                print(f"id: {index} worker:{worker._name}, stoped. restart it now")
                 self._start_worker(index)
 
     def _start_server(self):
@@ -38,6 +46,7 @@ class Acceptor(Process):
         self.listener.listen()
         print("register listener fd {}, event {}".format(self.listener.fileno(), select.EPOLLIN))
         self.loop.register(self.listener.fileno(), select.EPOLLIN, self.dispatch)
+        self.loop.set_idel(self.on_idel)
 
     def _dispatch_rule(self):
         current_worker = self._current_worker_id
@@ -47,7 +56,7 @@ class Acceptor(Process):
     def dispatch(self, socket_fd):
         worer_id = self._dispatch_rule()
         session_fd, address = self.listener.accept()
-        print("dispatch fd:{} address {} to worker:{}".format(session_fd.fileno(), address, worer_id))
+        print("dispatch fd:{} address {} to worker:{}, msgbug:{}".format(session_fd.fileno(), address, worer_id, self.message_bus[worer_id]))
         socket.send_fds(self.message_bus[worer_id],[b"Acceptor new Connection"], [session_fd.fileno()])
 
     def run(self):
